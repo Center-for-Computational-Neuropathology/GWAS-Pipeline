@@ -3,9 +3,6 @@
 Date: April 22, 2024
 
 
-* Principal Investigator: Kurt Farrell
-* Authors: Shrishtee Kandoi
-
 ## STEPS INCLUDED IN THE PIPELINE
 
 1. Sample and SNP QC: Data Cleaning
