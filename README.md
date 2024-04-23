@@ -1,9 +1,10 @@
 # GWAS_Pipeline_CraryLab
 
-Date: April 22 2024
+Date: April 22, 2024
 
-Principal Investigator: Kurt Farrell
-Authors: Shrishtee Kandoi
+
+* Principal Investigator: Kurt Farrell
+* Authors: Shrishtee Kandoi
 
 ## STEPS INCLUDED IN THE PIPELINE
 
@@ -19,8 +20,7 @@ Authors: Shrishtee Kandoi
 
 ### 1. QC (Sample and SNP) - Data Clean
 
-```
-
+```bash
 #Load required modules
 ml plink
 cd /sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
@@ -29,11 +29,10 @@ cd /sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 # i=${1}
 dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 ```
-########################################
-################ Step 1 ################
-########################################
 
-```
+a. STEP 1
+
+```bash
 #Investigate missingness per individual and per SNP and make histograms
 plink --bfile ${dir}/PART_KatQC_Hg19 --missing
 
@@ -48,11 +47,9 @@ plink --bfile ${dir}/PART_KatQC_Hg19.2 --missing
 Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/hist_miss.R
 ```
 
-########################################
-################ Step 2 ################
-########################################
+b. STEP 2
 
-```
+```bash
 
 # Select autosomal SNPs only (i.e., from chromosomes 1 to 22)
 awk '{ if ($1 >= 1 && $1 <= 22) print $2 }' ${dir}/PART_KatQC_Hg19.2.bim > snp_1_22.txt
@@ -70,11 +67,9 @@ plink --bfile ${dir}/PART_KatQC_Hg19.3 --maf 0.01 --make-bed --out ${dir}/PART_K
 
 ```
 
-########################################
-################ Step 4 ################
-########################################
+c. STEP 3
 
-```
+```bash
 # Delete SNPs which are not in Hardy-Weinberg equilibrium (HWE) & Check the distribution of HWE p-values of all SNPs
 plink --bfile ${dir}/PART_KatQC_Hg19.4 --hardy
 
@@ -89,11 +84,9 @@ plink --bfile ${dir}/PART_KatQC_Hg19.5 --hwe 1e-10 --hwe-all --make-bed --out ${
 
 ```
 
-########################################
-################ Step 5 ################
-########################################
+d. STEP 4
 
-```
+```bash
 
 # Inversions file is the region file with high-LD: https://github.com/cran/plinkQC/blob/master/inst/extdata/high-LD-regions-hg19-GRCh37.txt
 plink --bfile ${dir}/PART_KatQC_Hg19.6 --extract ../inversions_grch37.txt --range --indep-pairwise 50 5 0.2 --out indepSNP
@@ -110,11 +103,9 @@ plink --bfile PART_KatQC_Hg19.6 --remove het_fail_ind.txt --make-bed --out PART_
 
 ```
 
-########################################
-################ Step 6 ################
-########################################
+e. STEP 5
 
-```
+```bash
 
 # Check for relationships between individuals with a pihat > 0.2.
 plink --bfile PART_KatQC_Hg19.7 --extract indepSNP.prune.in --genome --min 0.2 --out pihat_min0.2
@@ -128,7 +119,7 @@ awk '{ if ($8 >0.9) print $0 }' pihat_min0.2.genome > zoom_pihat.genome
 
 ##### Optional Step to check for sex discrepancy
 
-```
+```bash
 
 # Check for sex discrepancy.
 plink --bfile PART_KatQC_Hg19.7 --check-sex --allow-no-sex
@@ -138,14 +129,14 @@ Rscript --no-save gender_check.R
 
 1. Delete individuals with sex discrepancy.
 
-# This command generates a list of individuals with the status �PROBLEM�.
+# This command generates a list of individuals with the status "PROBLEM".
 grep "PROBLEM" plink.sexcheck| awk '{print$1,$2}'> sex_discrepancy.txt
 
-# This command removes the list of individuals with the status �PROBLEM�.
-plink --bfile PART_KatQC_Hg19.7 --remove sex_discrepancy.txt --make-bed --out upenn_ucla_mssm.chr$i.6 
+# This command removes the list of individuals with the status "PROBLEM".
+plink --bfile PART_KatQC_Hg19.7 --remove sex_discrepancy.txt --make-bed --out PART_KatQC_Hg19.8
 
 # 2) Impute-sex.
-#plink --bfile HapMap_3_r3_5 --impute-sex --make-bed --out HapMap_3_r3_6
+#plink --bfile PART_KatQC_Hg19.8 --impute-sex --make-bed --out PART_KatQC_Hg19.9
 # This imputes the sex based on the genotype information into your data set.
 
 ```
@@ -153,7 +144,7 @@ plink --bfile PART_KatQC_Hg19.7 --remove sex_discrepancy.txt --make-bed --out up
 ## Preparation of data prior to submission to Imputation server
 
 
-```
+```bash
 #LOAD REQUIRED MODULES
 
 ml plink
@@ -163,47 +154,47 @@ ml minimac4
 
 dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 
-#Make the .frq file
+1. Make the .frq file
+
 plink --bfile ${dir}/PART_KatQC_Hg19.7 --keep-allele-order --freq --out ${dir}/PART_KatQC_Hg19.7 --allow-no-sex
 
-#Separate into chromosome
+2. Separate into chromosome
+
 for chr in {1..22} X Y; do
     # Extract variants for this chromosome
     plink --bfile ${dir}/PART_KatQC_Hg19.7 --chr $chr --make-bed --out ${dir}/chrom/PART_KatQC_Hg19_separate.$chr
 done
 
-#Make vcf files
-# plink --bfile ${dir}/PART_KatQC_Hg19.7 --recode vcf --out ${dir}/PART_KatQC_Hg19.7 --keep-allele-order
+3. Make vcf files
 
-for chnum in {1..22};
+for chr in {1..22};
   do
-  plink --bfile ${dir}/chrom/PART_KatQC_Hg19_separate.$chnum --recode vcf --chr $chnum --out ${dir}/chrom/PART_KatQC_Hg19_separate.$chnum --allow-no-sex
+  plink --bfile ${dir}/chrom/PART_KatQC_Hg19_separate.$chr --recode vcf --chr $chr --out ${dir}/chrom/PART_KatQC_Hg19_separate.$chr --allow-no-sex
 done
 
-#Then sort and zip
-# vcf-sort ${dir}/PART_KatQC_Hg19.7.vcf | bgzip -c > pre_impute_PART_KatQC_Hg19.7.vcf.gz
+4. Sort and bgzip
 
-#BGZIP vcf files
-for chnum in {1..22};
+for chr in {1..22};
   do
-  vcf-sort ${dir}/chrom/PART_KatQC_Hg19_separate.$chnum.vcf | bgzip -c > ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chnum.vcf.gz
+  vcf-sort ${dir}/chrom/PART_KatQC_Hg19_separate.$chr.vcf | bgzip -c > ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz
 done
 
-#Index vcf files
-for chnum in {1..22};
+5. Index vcf files
+
+for chr in {1..22};
   do
-  tabix -p vcf ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chnum.vcf.gz
+  tabix -p vcf ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz
 done
 
-#and then you are ready to submit to the imputation server or use minimac4/1.6 (latest version)
-# minimac4 1000g_phase3_v5.chr14.with_parameter_estimates.msav pre_impute_upenn_ucla_mssm_impute_chr14.output_file.vcf.gz -o imputed_upenn_ucla_mssm_impute_chr14.output_file.vcf.gz
+6. Submit to the imputation server or use minimac4/1.6 (latest version)
 
 msav_files=/sc/arion/projects/tauomics/Shrishtee/Imputation/g1k_p3_msav_files_with_estimates
 
-for chnum in {1..22};
+for chr in {1..22};
   do
-  minimac4 ${msav_files}/1000g_phase3_v5.chr$chnum.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chnum.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$chnum.vcf.gz
+  minimac4 ${msav_files}/1000g_phase3_v5.chr$chr.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$chr.vcf.gz
 done
+
 ```
 
 
@@ -225,7 +216,7 @@ b. Minimac4: https://github.com/statgen/Minimac4
 
 <!-- Reference panel: https://share.sph.umich.edu/minimac4/panels/ -->
 
-```
+```bash
 ml minimac4
 
 i=${1}
@@ -236,3 +227,5 @@ msav_files=/sc/arion/projects/tauomics/Shrishtee/Imputation/g1k_p3_msav_files_wi
 minimac4 ${msav_files}/1000g_phase3_v5.chr$i.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$i.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$i.vcf.gz
 
 ```
+
+# 3. 
