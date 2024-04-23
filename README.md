@@ -30,7 +30,7 @@ cd /sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 ```
 
-#### a. STEP 1: Missingness of SNPs and individuals
+#### a. Missingness of SNPs and individuals
 
 ```bash
 #Investigate missingness per individual and per SNP and make histograms
@@ -72,7 +72,7 @@ plink --bfile PART_KatQC_Hg19.7 --remove sex_discrepancy.txt --make-bed --out PA
 
 ```
 
-#### b. STEP 2: Minor allele frequency
+#### b. Minor allele frequency
 
 ```bash
 
@@ -92,7 +92,7 @@ plink --bfile ${dir}/PART_KatQC_Hg19.3 --maf 0.01 --make-bed --out ${dir}/PART_K
 
 ```
 
-#### c. STEP 3: Hardy-Weinberg equilibrium (HWE)
+#### c. Hardy-Weinberg equilibrium (HWE)
 
 ```bash
 #Delete SNPs which are not in Hardy-Weinberg equilibrium (HWE) & Check the distribution of HWE p-values of all SNPs
@@ -108,7 +108,7 @@ plink --bfile ${dir}/PART_KatQC_Hg19.5 --hwe 1e-10 --hwe-all --make-bed --out ${
 
 ```
 
-#### d. STEP 4: Heterozygosity
+#### d. Heterozygosity
 
 ```bash
 # Inversions file is the region file with high-LD: https://github.com/cran/plinkQC/blob/master/inst/extdata/high-LD-regions-hg19-GRCh37.txt
@@ -186,18 +186,6 @@ for chr in {1..22};
   do
   tabix -p vcf ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz
 done
-```
-
-6. Submit to the imputation server or use minimac4/1.6 (latest version)
-
-```bash
-msav_files=/sc/arion/projects/tauomics/Shrishtee/Imputation/g1k_p3_msav_files_with_estimates
-
-for chr in {1..22};
-  do
-  minimac4 ${msav_files}/1000g_phase3_v5.chr$chr.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$chr.vcf.gz
-done
-
 ```
 
 
