@@ -18,6 +18,7 @@ Date: April 24, 2024
 7. Run case-case GWAS
 8. Calculate Polygenic Risk Scores / Pathway scores
 
+![image](https://github.com/Shrishtee-kandoi/GWAS_Pipeline_CraryLab/assets/98359418/4d515baa-2f33-4be3-ad51-fbf7ea45e7f2)
 
 ### 1. QC (Sample and SNP) - Data Clean
 
