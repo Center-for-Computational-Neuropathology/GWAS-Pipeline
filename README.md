@@ -1,6 +1,10 @@
-# GWAS_Pipeline_CraryLab
+# GWAS Pipeline: CraryLab
 
-Date: April 22, 2024
+Date: April 24, 2024
+
+Principal Investigator: Kurt Farrell
+Lab: Crary Lab
+Author: Shrishtee Kandoi
 
 
 ## STEPS INCLUDED IN THE PIPELINE
