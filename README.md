@@ -2,9 +2,9 @@
 
 Date: April 24, 2024
 
-Principal Investigator: Kurt Farrell
-Lab: Crary Lab
-Author: Shrishtee Kandoi
+* Principal Investigator: Kurt Farrell
+* Lab: Crary Lab
+* Author: Shrishtee Kandoi
 
 
 ## STEPS INCLUDED IN THE PIPELINE
