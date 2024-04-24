@@ -50,7 +50,7 @@ Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/hist_miss.R
 ```bash
 
 # Check for sex discrepancy.
-plink --bfile PART_KatQC_Hg19.7 --check-sex --allow-no-sex
+plink --bfile PART_KatQC_Hg19 --check-sex --allow-no-sex
 
 # Generate plots to visualize the sex-check results.
 Rscript --no-save gender_check.R
@@ -61,10 +61,10 @@ Rscript --no-save gender_check.R
 grep "PROBLEM" plink.sexcheck| awk '{print$1,$2}'> sex_discrepancy.txt
 
 # This command removes the list of individuals with the status "PROBLEM".
-plink --bfile PART_KatQC_Hg19.7 --remove sex_discrepancy.txt --make-bed --out PART_KatQC_Hg19.8
+plink --bfile PART_KatQC_Hg19 --remove sex_discrepancy.txt --make-bed --out PART_KatQC_Hg19_sex
 
 # 2) Impute-sex.
-#plink --bfile PART_KatQC_Hg19.8 --impute-sex --make-bed --out PART_KatQC_Hg19.9
+#plink --bfile PART_KatQC_Hg19_sex --impute-sex --make-bed --out PART_KatQC_Hg19_imputed_sex
 # This imputes the sex based on the genotype information into your data set.
 
 ```
@@ -125,7 +125,17 @@ plink --bfile PART_KatQC_Hg19.7 --extract indepSNP.prune.in --genome --min 0.2 -
 
 awk '{ if ($8 >0.9) print $0 }' pihat_min0.2.genome > zoom_pihat.genome
 
+```
 
+#### e. PCA
+
+```bash
+ml plink
+ml flashpca
+
+plink --bfile SOW52_PART_sex.update.7 --indep-pairwise 1000 10 0.02 --autosome --keep-allele-order --out pruned_PCA
+plink --bfile SOW52_PART_sex.update.7 --extract pruned_PCA.prune.in --keep-allele-order --make-bed --out PCA
+flashpca --bfile PCA --suffix _filter_pruned_forPCA.txt --numthreads 19
 ```
 
 ### Prepare data prior to submission to Imputation server
@@ -142,7 +152,7 @@ ml minimac4
 dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 ```
 
-1. Make the .frq file
+##### 1. Make the .frq file
 
 ```bash
 
@@ -157,7 +167,7 @@ for chr in {1..22} X Y; do
 done
 ```
 
-3. Make vcf files
+##### 3. Make vcf files
 
 ```bash
 
@@ -167,7 +177,7 @@ for chr in {1..22};
 done
 ```
 
-4. Sort and bgzip
+##### 4. Sort and bgzip
 
 ```bash
 for chr in {1..22};
@@ -176,7 +186,7 @@ for chr in {1..22};
 done
 ```
 
-5. Index vcf files
+##### 5. Index vcf files
 
 ```bash
 for chr in {1..22};
@@ -186,23 +196,26 @@ done
 ```
 
 
+
 # 2. Imputation
 
 a. Michigan Imputation Server
 
 https://imputationserver.sph.umich.edu/index.html
 
-<!-- Build: hg19
-Reference Panel: 1000g-phase-3-v5 (hg19)
-Population: mixed
-Phasing: eagle
-Mode: imputation -->
+* Build: hg19
+* Reference Panel: 1000g-phase-3-v5 (hg19)
+* Population: mixed
+* Phasing: eagle
+* Mode: imputation
 
 or 
 
 b. Minimac4: https://github.com/statgen/Minimac4
 
-<!-- Reference panel: https://share.sph.umich.edu/minimac4/panels/ -->
+* Reference panel: https://share.sph.umich.edu/minimac4/panels/
+    * g1k_p3_msav_files_with_estimates.tar.gz (hg19)
+    * Note: To use hg38, generate one on your own using a phased 1000g call set with `minimac4 --compress-reference`
 
 ```bash
 ml minimac4
@@ -215,6 +228,7 @@ msav_files=/sc/arion/projects/tauomics/Shrishtee/Imputation/g1k_p3_msav_files_wi
 minimac4 ${msav_files}/1000g_phase3_v5.chr$i.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$i.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$i.vcf.gz
 
 ```
+
 
 # 3. GWAS
 
@@ -235,7 +249,7 @@ plink \
 --pheno Covariate_file \
 --pheno-name status \
 --covar Covariate_file \
---covar-name PC01,PC02,PC03,sex,express,gsa,ucla,mssm,Haplotype \
+--covar-name PC01,PC02,PC03,sex,express,gsa,ucla,mssm \
 --keep-allele-order \
 --allow-no-sex \
 --adjust \
