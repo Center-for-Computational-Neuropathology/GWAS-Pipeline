@@ -1,207 +1,161 @@
+[![Built With](https://img.shields.io/badge/Built%20With-Nextflow-brightgreen.svg)](https://www.nextflow.io/)
+[![Compatibility](https://img.shields.io/badge/Compatibility-Linux+%2F+OSX-blue.svg)]()
+[![GitHub Issues](https://img.shields.io/github/issues/your-username/your-repo-name.svg)](https://github.com/your-username/your-repo-name/issues)
+[![GitHub Open](https://img.shields.io/badge/open-1-yellow.svg)]()
+
 # GWAS Pipeline
 
-Date: April 24, 2024
+A comprehensive pipeline for performing Genome-Wide Association Studies (GWAS), from quality control through association analysis and visualization.
 
-* Lab: Crary Lab
-* Principal Investigator: Kurt Farrell
-* Author: Shrishtee Kandoi
+Date: February 2025
 
-## STEPS INCLUDED IN THE PIPELINE
+## Overview
+
+This pipeline provides a standardized workflow for GWAS analysis, including quality control, imputation, ancestry prediction, and association testing. The pipeline is designed to work with genotype data and includes tools for handling population stratification and relatedness.
+
+## Pipeline Structure
 
 1. Sample and SNP QC: Data Cleaning
 2. Imputation
-3. Relatedness
-4. Population stratification
-5. Run GWAS
-6. Visualize results on Locus Zoom
-7. Run case-case GWAS
-8. Calculate Polygenic Risk Scores / Pathway scores
+3. Ancestry prediction
+4. GWAS
+5. Visualize results on Locus Zoom
+<!-- 6. Run case-case GWAS -->
+<!-- 7. Calculate Polygenic Risk Scores / Pathway scores -->
+
+## Installation / Prerequisites
+
+* PLINK (v1.90b6.21 or newer)
+* FlashPCA
+* Minimac4
+* vcftools
+* bcftools
+* R
+* Somalier
+
+## Setup
+
+### Clone this repository
+git clone https://github.com/Shrishtee-kandoi/GWAS-Pipeline.git
+cd GWAS-Pipeline
+
+### Make scripts executable
+chmod +x QC_GWAS/*.sh
+chmod +x Imputation_scripts/*.sh
+chmod +x Ancestry_prediction/*.sh
+chmod +x Association_analysis/*.sh
 
 ![image](https://github.com/Shrishtee-kandoi/GWAS_Pipeline_CraryLab/assets/98359418/4d515baa-2f33-4be3-ad51-fbf7ea45e7f2)
 
-### 1. QC (Sample and SNP) - Data Clean
+## 1. Quality Control (Sample and SNP level): QC_GWAS/
 
-```bash
-#Load required modules
-ml plink
-cd /sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
-
-#Read each chrom per batch
-# i=${1}
-dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
-```
-
-#### a. Missingness of SNPs and individuals
-
-```bash
-#Investigate missingness per individual and per SNP and make histograms
-plink --bfile ${dir}/PART_KatQC_Hg19 --missing
-
-#Generate plots to visualize the missingness results
-Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/hist_miss.R
-
-#Delete SNPs and Samples with missingness > 0.2
-plink --bfile ${dir}/PART_KatQC_Hg19 --geno 0.2 --mind 0.2 --make-bed --out ${dir}/PART_KatQC_Hg19.2 -keep-allele-order
-
-#Check missingness again and plot
-plink --bfile ${dir}/PART_KatQC_Hg19.2 --missing
-Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/hist_miss.R
-```
-
-
-##### Optional Step to check for sex discrepancy
-
-```bash
-
-# Check for sex discrepancy.
-plink --bfile PART_KatQC_Hg19 --check-sex --allow-no-sex
-
-# Generate plots to visualize the sex-check results.
-Rscript --no-save gender_check.R
-
-1. Delete individuals with sex discrepancy.
-
-# This command generates a list of individuals with the status "PROBLEM".
-grep "PROBLEM" plink.sexcheck| awk '{print$1,$2}'> sex_discrepancy.txt
-
-# This command removes the list of individuals with the status "PROBLEM".
-plink --bfile PART_KatQC_Hg19 --remove sex_discrepancy.txt --make-bed --out PART_KatQC_Hg19_sex
-
-# 2) Impute-sex.
-#plink --bfile PART_KatQC_Hg19_sex --impute-sex --make-bed --out PART_KatQC_Hg19_imputed_sex
-# This imputes the sex based on the genotype information into your data set.
-
-```
-
-#### b. Minor allele frequency
-
-```bash
-
-# Select autosomal SNPs only (i.e., from chromosomes 1 to 22)
-awk '{ if ($1 >= 1 && $1 <= 22) print $2 }' ${dir}/PART_KatQC_Hg19.2.bim > snp_1_22.txt
-plink --bfile ${dir}/PART_KatQC_Hg19.2 --extract snp_1_22.txt --make-bed --out ${dir}/PART_KatQC_Hg19.3
-
-# Generate a plot of the MAF distribution
-plink --bfile ${dir}/PART_KatQC_Hg19.3 --freq --out MAF_check
-Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/MAF_check.R
-
-# Remove SNPs with a low MAF frequency (A conventional MAF threshold for a regular GWAS is between 0.01 or 0.05, depending on sample size)
-plink --bfile ${dir}/PART_KatQC_Hg19.3 --maf 0.01 --make-bed --out ${dir}/PART_KatQC_Hg19.4
-
-#MAF - 0.01 ===> ? remained, ? SNPs removed
-#MAF - 0.05 ===> ? remained, ? SNPs removed
-
-```
-
-#### c. Hardy-Weinberg equilibrium (HWE)
-
-```bash
-#Delete SNPs which are not in Hardy-Weinberg equilibrium (HWE) & Check the distribution of HWE p-values of all SNPs
-plink --bfile ${dir}/PART_KatQC_Hg19.4 --hardy
-
-awk '{ if ($9 <0.00001) print $0 }' plink.hwe > plinkzoomhwe.hwe
-Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/hwe.R
-
-plink --bfile ${dir}/PART_KatQC_Hg19.4 --hwe 1e-6 --make-bed --out ${dir}/PART_KatQC_Hg19.5
-plink --bfile ${dir}/PART_KatQC_Hg19.5 --hwe 1e-10 --hwe-all --make-bed --out ${dir}/PART_KatQC_Hg19.6
-
-# SNPs pass filters and QC
-
-```
-
-#### d. Heterozygosity
-
-```bash
-# Inversions file is the region file with high-LD: https://github.com/cran/plinkQC/blob/master/inst/extdata/high-LD-regions-hg19-GRCh37.txt
-
-plink --bfile ${dir}/PART_KatQC_Hg19.6 --extract ../inversions_grch37.txt --range --indep-pairwise 50 5 0.2 --out indepSNP
-plink --bfile PART_KatQC_Hg19.6 --extract indepSNP.prune.in --het --out R_check
-Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/check_heterozygosity_rate.R
-Rscript --no-save /sc/arion/projects/tauomics/Shrishtee/1_QC_GWAS/heterozygosity_outliers_list.R
-sed 's/"// g' fail-het-qc.txt | awk '{print$1, $2}'> het_fail_ind.txt
-plink --bfile PART_KatQC_Hg19.6 --remove het_fail_ind.txt --make-bed --out PART_KatQC_Hg19.7
-
-```
-
-```bash
-#Checks for relationships between individuals with a pihat > 0.2.
-plink --bfile PART_KatQC_Hg19.7 --extract indepSNP.prune.in --genome --min 0.2 --out pihat_min0.2
-
-awk '{ if ($8 >0.9) print $0 }' pihat_min0.2.genome > zoom_pihat.genome
-
-```
-
-#### e. PCA
-
-```bash
-ml plink
-ml flashpca
-
-plink --bfile SOW52_PART_sex.update.7 --indep-pairwise 1000 10 0.02 --autosome --keep-allele-order --out pruned_PCA
-plink --bfile SOW52_PART_sex.update.7 --extract pruned_PCA.prune.in --keep-allele-order --make-bed --out PCA
-flashpca --bfile PCA --suffix _filter_pruned_forPCA.txt --numthreads 19
-```
+* Missingness filtering (SNPs and individuals)
+* Sex discrepancy checks
+* Minor allele frequency filtering
+* Hardy-Weinberg equilibrium testing
+* Heterozygosity checks
+* Relatedness analysis
+* Principal Component Analysis
 
 ### Prepare data prior to submission to Imputation server
 
+## 2. Imputation: Imputation_scripts/
 
-```bash
-#LOAD REQUIRED MODULES
+Data preparation
+Chromosome separation
+VCF conversion
+Michigan Imputation Server or Minimac4
+# === CONFIGURATION ===
+# Modify these variables for your environment and data
+INPUT_FILE="your_clean_data"     # Base name of your input PLINK files after QC
+OUTPUT_DIR="imputation_ready"    # Directory to store processed files
+CHROMOSOMES="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y"  # Chromosomes to process
 
-ml plink
-ml vcftools
-ml bcftools #To use bgzip
-ml minimac4
+# === LOAD MODULES ===
+# Uncomment and modify based on your computing environment
+# module load plink
+# module load vcftools
+# module load bcftools
+# module load minimac4
 
-dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
-```
+# === CREATE DIRECTORIES ===
+mkdir -p ${OUTPUT_DIR}/chrom
 
-##### 1. Make the .frq file
+# === PROCESS DATA ===
+echo "Starting imputation preparation for ${INPUT_FILE}"
 
-```bash
+# 1. Generate frequency file (useful for QC and post-imputation filtering)
+echo "Step 1: Generating frequency file..."
+plink --bfile ${INPUT_FILE} \
+      --keep-allele-order \
+      --freq \
+      --out ${OUTPUT_DIR}/${INPUT_FILE}_freq \
+      --allow-no-sex
 
-plink --bfile ${dir}/PART_KatQC_Hg19.7 --keep-allele-order --freq --out ${dir}/PART_KatQC_Hg19.7 --allow-no-sex
-```
-2. Separate into chromosome
-
-```bash
-for chr in {1..22} X Y; do
-    # Extract variants for this chromosome
-    plink --bfile ${dir}/PART_KatQC_Hg19.7 --chr $chr --make-bed --out ${dir}/chrom/PART_KatQC_Hg19_separate.$chr
+# 2. Split data by chromosome
+echo "Step 2: Splitting data by chromosome..."
+for chr in ${CHROMOSOMES}; do
+    echo "  Processing chromosome ${chr}..."
+    plink --bfile ${INPUT_FILE} \
+          --chr ${chr} \
+          --make-bed \
+          --out ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}
 done
-```
 
-##### 3. Make vcf files
-
-```bash
-
-for chr in {1..22};
-  do
-  plink --bfile ${dir}/chrom/PART_KatQC_Hg19_separate.$chr --recode vcf --chr $chr --out ${dir}/chrom/PART_KatQC_Hg19_separate.$chr --allow-no-sex
+# 3. Convert to VCF format
+echo "Step 3: Converting to VCF format..."
+for chr in ${CHROMOSOMES}; do
+    # Skip sex chromosomes if needed
+    if [[ ${chr} == "X" ]] || [[ ${chr} == "Y" ]]; then
+        echo "  Skipping chromosome ${chr} for this example (modify if needed)"
+        continue
+    fi
+    
+    echo "  Converting chromosome ${chr} to VCF..."
+    plink --bfile ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr} \
+          --recode vcf \
+          --chr ${chr} \
+          --out ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr} \
+          --allow-no-sex
 done
-```
 
-##### 4. Sort and bgzip
-
-```bash
-for chr in {1..22};
-  do
-  vcf-sort ${dir}/chrom/PART_KatQC_Hg19_separate.$chr.vcf | bgzip -c > ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz
+# 4. Sort and compress VCF files
+echo "Step 4: Sorting and compressing VCF files..."
+for chr in ${CHROMOSOMES}; do
+    # Skip sex chromosomes if needed
+    if [[ ${chr} == "X" ]] || [[ ${chr} == "Y" ]]; then
+        continue
+    fi
+    
+    echo "  Processing chromosome ${chr}..."
+    vcf_file="${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}.vcf"
+    
+    if [ -f "$vcf_file" ]; then
+        vcf-sort ${vcf_file} | bgzip -c > ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}.vcf.gz
+    else
+        echo "  Warning: VCF file for chromosome ${chr} not found"
+    fi
 done
-```
 
-##### 5. Index vcf files
-
-```bash
-for chr in {1..22};
-  do
-  tabix -p vcf ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$chr.vcf.gz
+# 5. Index VCF files
+echo "Step 5: Indexing VCF files..."
+for chr in ${CHROMOSOMES}; do
+    # Skip sex chromosomes if needed
+    if [[ ${chr} == "X" ]] || [[ ${chr} == "Y" ]]; then
+        continue
+    fi
+    
+    gz_file="${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}.vcf.gz"
+    
+    if [ -f "$gz_file" ]; then
+        echo "  Indexing chromosome ${chr}..."
+        tabix -p vcf ${gz_file}
+    else
+        echo "  Warning: Compressed VCF file for chromosome ${chr} not found"
+    fi
 done
-```
 
-
-
-# 2. Imputation
+### Next steps
 
 a. Michigan Imputation Server
 
@@ -232,9 +186,11 @@ msav_files=/sc/arion/projects/tauomics/Shrishtee/Imputation/g1k_p3_msav_files_wi
 minimac4 ${msav_files}/1000g_phase3_v5.chr$i.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$i.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$i.vcf.gz
 
 ```
+# 3. Ancestry prediction
 
+This project uses [somalier](https://github.com/brentp/somalier) for relatedness analysis of sequencing data.
 
-# 3. GWAS
+# 4. GWAS
 
 Now, we take the Imputed files and run an association analysis using plink.
 * Plink version: plink/1.90b6.21
