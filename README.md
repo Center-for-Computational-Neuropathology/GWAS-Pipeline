@@ -1,4 +1,4 @@
-# GWAS Pipeline: CraryLab
+# GWAS Pipeline
 
 Date: April 24, 2024
 
