@@ -36,18 +36,15 @@ This pipeline provides a standardized workflow for GWAS analysis, including qual
 ## Setup
 
 ### Clone this repository
+```bash
 git clone https://github.com/Shrishtee-kandoi/GWAS-Pipeline.git
 cd GWAS-Pipeline
+```
 
-### Make scripts executable
-chmod +x QC_GWAS/*.sh
-chmod +x Imputation_scripts/*.sh
-chmod +x Ancestry_prediction/*.sh
-chmod +x Association_analysis/*.sh
-
+### Schematic diagram of how GWAS works!
 ![image](https://github.com/Shrishtee-kandoi/GWAS_Pipeline_CraryLab/assets/98359418/4d515baa-2f33-4be3-ad51-fbf7ea45e7f2)
 
-## 1. Quality Control (Sample and SNP level): QC_GWAS/
+# 1. Quality Control (Sample and SNP level): QC_GWAS/
 
 * Missingness filtering (SNPs and individuals)
 * Sex discrepancy checks
@@ -57,53 +54,61 @@ chmod +x Association_analysis/*.sh
 * Relatedness analysis
 * Principal Component Analysis
 
-### Prepare data prior to submission to Imputation server
-
 ## 2. Imputation: Imputation_scripts/
 
-Data preparation
-Chromosome separation
-VCF conversion
-Michigan Imputation Server or Minimac4
-# === CONFIGURATION ===
-# Modify these variables for your environment and data
+* Data preparation
+* Chromosome separation
+* VCF conversion
+* Michigan Imputation Server or Minimac4
+
+### === CONFIGURATION ===
+
+```bash
 INPUT_FILE="your_clean_data"     # Base name of your input PLINK files after QC
 OUTPUT_DIR="imputation_ready"    # Directory to store processed files
+
 CHROMOSOMES="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y"  # Chromosomes to process
+```
 
-# === LOAD MODULES ===
-# Uncomment and modify based on your computing environment
-# module load plink
-# module load vcftools
-# module load bcftools
-# module load minimac4
+### === LOAD MODULES ===
 
-# === CREATE DIRECTORIES ===
+#### module load plink
+#### module load vcftools
+#### module load bcftools
+#### module load minimac4
+
+### === CREATE DIRECTORIES ===
 mkdir -p ${OUTPUT_DIR}/chrom
 
-# === PROCESS DATA ===
+### === PROCESS DATA ===
 echo "Starting imputation preparation for ${INPUT_FILE}"
 
-# 1. Generate frequency file (useful for QC and post-imputation filtering)
-echo "Step 1: Generating frequency file..."
+## 1. Generate frequency file (useful for QC and post-imputation filtering)
+* Step 1: Generating frequency file
+
+```bash
 plink --bfile ${INPUT_FILE} \
       --keep-allele-order \
       --freq \
       --out ${OUTPUT_DIR}/${INPUT_FILE}_freq \
       --allow-no-sex
 
-# 2. Split data by chromosome
-echo "Step 2: Splitting data by chromosome..."
+## 2. Split data by chromosome
+* Step 2: Splitting data by chromosome
+
 for chr in ${CHROMOSOMES}; do
-    echo "  Processing chromosome ${chr}..."
+    echo "  Processing chromosome ${chr}"
     plink --bfile ${INPUT_FILE} \
           --chr ${chr} \
           --make-bed \
           --out ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}
 done
+```
 
-# 3. Convert to VCF format
-echo "Step 3: Converting to VCF format..."
+## 3. Convert to VCF format
+* Step 3: Converting to VCF format
+
+```bash
 for chr in ${CHROMOSOMES}; do
     # Skip sex chromosomes if needed
     if [[ ${chr} == "X" ]] || [[ ${chr} == "Y" ]]; then
@@ -111,23 +116,26 @@ for chr in ${CHROMOSOMES}; do
         continue
     fi
     
-    echo "  Converting chromosome ${chr} to VCF..."
+    echo "Converting chromosome ${chr} to VCF"
     plink --bfile ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr} \
           --recode vcf \
           --chr ${chr} \
           --out ${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr} \
           --allow-no-sex
 done
+```
 
 # 4. Sort and compress VCF files
-echo "Step 4: Sorting and compressing VCF files..."
+* Step 4: Sorting and compressing VCF files
+
+```bash
 for chr in ${CHROMOSOMES}; do
     # Skip sex chromosomes if needed
     if [[ ${chr} == "X" ]] || [[ ${chr} == "Y" ]]; then
         continue
     fi
     
-    echo "  Processing chromosome ${chr}..."
+    echo "  Processing chromosome ${chr}"
     vcf_file="${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}.vcf"
     
     if [ -f "$vcf_file" ]; then
@@ -136,9 +144,11 @@ for chr in ${CHROMOSOMES}; do
         echo "  Warning: VCF file for chromosome ${chr} not found"
     fi
 done
+```
 
 # 5. Index VCF files
-echo "Step 5: Indexing VCF files..."
+* Step 5: Indexing VCF files
+```bash
 for chr in ${CHROMOSOMES}; do
     # Skip sex chromosomes if needed
     if [[ ${chr} == "X" ]] || [[ ${chr} == "Y" ]]; then
@@ -148,12 +158,13 @@ for chr in ${CHROMOSOMES}; do
     gz_file="${OUTPUT_DIR}/chrom/${INPUT_FILE}_chr${chr}.vcf.gz"
     
     if [ -f "$gz_file" ]; then
-        echo "  Indexing chromosome ${chr}..."
+        echo "  Indexing chromosome ${chr}"
         tabix -p vcf ${gz_file}
     else
         echo "  Warning: Compressed VCF file for chromosome ${chr} not found"
     fi
 done
+```
 
 ### Next steps
 
@@ -167,8 +178,6 @@ https://imputationserver.sph.umich.edu/index.html
 * Phasing: eagle
 * Mode: imputation
 
-or 
-
 b. Minimac4: https://github.com/statgen/Minimac4
 
 * Reference panel: https://share.sph.umich.edu/minimac4/panels/
@@ -177,14 +186,12 @@ b. Minimac4: https://github.com/statgen/Minimac4
 
 ```bash
 ml minimac4
-
 i=${1}
 
 dir=/sc/arion/projects/tauomics/Shrishtee/PART_DATA_SOW_KAT_CHOP/KAT
 msav_files=/sc/arion/projects/tauomics/Shrishtee/Imputation/g1k_p3_msav_files_with_estimates
 
 minimac4 ${msav_files}/1000g_phase3_v5.chr$i.with_parameter_estimates.msav ${dir}/chrom/pre_impute_PART_KatQC_Hg19_separate.$i.vcf.gz -o ${dir}/Imputed/imputed_PART_KatQC_Hg19_separate.$i.vcf.gz
-
 ```
 # 3. Ancestry prediction
 
